@@ -36,7 +36,11 @@ export const authService = {
     return { user, token };
   },
 
-  async signup(name: string, email: string, password: string): Promise<{ user: PublicUser; token: string }> {
+  async signup(
+    name: string,
+    email: string,
+    password: string,
+  ): Promise<{ user: PublicUser; token: string }> {
     const response = await fetch(`${BASE}/api/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

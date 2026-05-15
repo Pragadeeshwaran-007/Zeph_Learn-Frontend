@@ -27,12 +27,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         loading,
         login: async (e, p) => {
-          const { user } = authService.login(e, p);
+          const { user } = await authService.login(e, p);
           setUser(user);
           return user;
         },
         signup: async (n, e, p) => {
-          const { user } = authService.signup(n, e, p);
+          const { user } = await authService.signup(n, e, p);
           setUser(user);
           return user;
         },

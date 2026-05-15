@@ -1,3 +1,5 @@
+import { ls, STORAGE_KEYS } from "@/utils/storage";
+
 const BASE = import.meta.env.VITE_API_BASE_URL || "https://zeph-learn-backend.onrender.com";
 
 export interface Judge0Result {
@@ -11,11 +13,16 @@ export interface Judge0Result {
 
 function languageIdToName(id: number): string {
   switch (id) {
-    case 54: return "cpp";
-    case 62: return "java";
-    case 71: return "python";
-    case 63: return "javascript";
-    default: return "python";
+    case 54:
+      return "cpp";
+    case 62:
+      return "java";
+    case 71:
+      return "python";
+    case 63:
+      return "javascript";
+    default:
+      return "python";
   }
 }
 
@@ -26,18 +33,14 @@ export const judge0Service = {
     stdin?: string;
     expected_output?: string;
   }): Promise<Judge0Result> {
-    const token = (() => {
-      try {
-        const v = localStorage.getItem("zeph_token");
-        return v ? JSON.parse(v) : null;
-      } catch { return null; }
-    })();
+    const raw = ls.get<string | null>(STORAGE_KEYS.token, null);
+    const token = typeof raw === "string" && raw.length > 0 ? raw : null;
 
     const response = await fetch(`${BASE}/api/submissions/run`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({
         code: opts.source_code,
@@ -66,18 +69,26 @@ export const judge0Service = {
 
 export function verdictFromStatusId(id: number): string {
   switch (id) {
-    case 3: return "Accepted";
-    case 4: return "Wrong Answer";
-    case 5: return "Time Limit Exceeded";
-    case 6: return "Compilation Error";
+    case 3:
+      return "Accepted";
+    case 4:
+      return "Wrong Answer";
+    case 5:
+      return "Time Limit Exceeded";
+    case 6:
+      return "Compilation Error";
     case 11:
-    case 12: return "Runtime Error";
+    case 12:
+      return "Runtime Error";
     case 7:
     case 8:
     case 9:
-    case 10: return "Runtime Error";
+    case 10:
+      return "Runtime Error";
     case 13:
-    case 14: return "Internal Error";
-    default: return "Pending";
+    case 14:
+      return "Internal Error";
+    default:
+      return "Pending";
   }
 }
