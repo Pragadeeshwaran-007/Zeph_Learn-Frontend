@@ -13,6 +13,42 @@ export interface User {
 
 export type PublicUser = User;
 
+function storedToken(): string | null {
+  const raw = ls.get<string | null>(STORAGE_KEYS.token, null);
+  return typeof raw === "string" && raw.length > 0 ? raw : null;
+}
+
+function authReadHeaders(): HeadersInit {
+  const t = storedToken();
+  return {
+    Accept: "application/json",
+    ...(t ? { Authorization: `Bearer ${t}` } : {}),
+  };
+}
+
+function mapApiUser(row: Record<string, unknown>): PublicUser | null {
+  const id = row.id ?? row.userId;
+  if (id == null || id === "") return null;
+  const roleRaw = String(row.role ?? row.authority ?? "user").toLowerCase();
+  const role: "admin" | "user" =
+    roleRaw === "admin" || roleRaw.includes("admin") ? "admin" : "user";
+  let solved: string[] = [];
+  const sp = row.solvedProblems ?? row.solved_problems ?? row.solvedProblemIds;
+  if (Array.isArray(sp)) solved = sp.map((x) => String(x));
+  const created =
+    (typeof row.createdAt === "string" && row.createdAt) ||
+    (typeof row.created_at === "string" && row.created_at) ||
+    new Date().toISOString();
+  return {
+    id: String(id),
+    name: String(row.name ?? ""),
+    email: String(row.email ?? ""),
+    role,
+    solvedProblems: solved,
+    createdAt: created,
+  };
+}
+
 export const authService = {
   async login(email: string, password: string): Promise<{ user: PublicUser; token: string }> {
     const response = await fetch(`${BASE}/api/auth/login`, {
@@ -71,11 +107,43 @@ export const authService = {
     return ls.get<PublicUser | null>(STORAGE_KEYS.user, null);
   },
 
-  listUsers(): PublicUser[] {
-    return [];
+  async listUsers(): Promise<PublicUser[]> {
+    const response = await fetch(`${BASE}/api/admin/users`, {
+      method: "GET",
+      headers: authReadHeaders(),
+    });
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) return [];
+      const t = await response.text();
+      throw new Error(`Failed to load users: ${response.status} ${t.slice(0, 120)}`);
+    }
+    const raw: unknown = await response.json();
+    const rows: unknown[] = Array.isArray(raw)
+      ? raw
+      : raw && typeof raw === "object" && Array.isArray((raw as { content?: unknown }).content)
+        ? ((raw as { content: unknown[] }).content as unknown[])
+        : raw && typeof raw === "object" && Array.isArray((raw as { users?: unknown }).users)
+          ? ((raw as { users: unknown[] }).users as unknown[])
+          : [];
+    return rows
+      .filter(
+        (r): r is Record<string, unknown> =>
+          r != null && typeof r === "object" && !Array.isArray(r),
+      )
+      .map((r) => mapApiUser(r))
+      .filter((u): u is PublicUser => u != null);
   },
 
-  deleteUser(_id: string) {},
+  async deleteUser(id: string): Promise<void> {
+    const response = await fetch(`${BASE}/api/admin/users/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: authReadHeaders(),
+    });
+    if (!response.ok) {
+      const t = await response.text();
+      throw new Error(`Delete failed: ${response.status} ${t.slice(0, 120)}`);
+    }
+  },
 
   markSolved(userId: string, problemId: string) {
     const cur = ls.get<PublicUser | null>(STORAGE_KEYS.user, null);

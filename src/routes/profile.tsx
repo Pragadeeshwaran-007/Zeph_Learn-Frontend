@@ -3,8 +3,8 @@ import { Navbar } from "@/components/Navbar";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { problemService } from "@/services/problemService";
 import { submissionService } from "@/services/submissionService";
-import { authService } from "@/services/authService";
-import { useMemo } from "react";
+import { authService, type PublicUser } from "@/services/authService";
+import { useEffect, useMemo, useState } from "react";
 import { CircularProgress } from "@/components/CircularProgress";
 import { Flame, Trophy } from "lucide-react";
 import { getLanguage } from "@/utils/languageMap";
@@ -22,13 +22,35 @@ function deriveStreak(id: string) {
 
 function ProfilePage() {
   const { user, loading } = useRequireAuth();
+  const [allUsers, setAllUsers] = useState<PublicUser[]>([]);
+
+  useEffect(() => {
+    if (!user) {
+      setAllUsers([]);
+      return;
+    }
+    let cancelled = false;
+    authService
+      .listUsers()
+      .then((list) => {
+        if (!cancelled) setAllUsers(list);
+      })
+      .catch(() => {
+        if (!cancelled) setAllUsers([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   const data = useMemo(() => {
     if (!user) return null;
     const all = problemService.list();
     const solved = all.filter((p) => user.solvedProblems.includes(p.id));
-    const subs = submissionService.list().filter((s) => s.userId === user.id).slice(0, 8);
-    const allUsers = authService.listUsers();
+    const subs = submissionService
+      .list()
+      .filter((s) => s.userId === user.id)
+      .slice(0, 8);
     const sorted = [...allUsers].sort((a, b) => b.solvedProblems.length - a.solvedProblems.length);
     const rank = sorted.findIndex((u) => u.id === user.id) + 1;
     return {
@@ -43,7 +65,7 @@ function ProfilePage() {
       subs,
       rank,
     };
-  }, [user]);
+  }, [user, allUsers]);
 
   if (loading || !user || !data) return null;
 
@@ -100,9 +122,24 @@ function ProfilePage() {
                 label="Solved"
               />
               <div className="flex-1 space-y-3">
-                <ProgressBar label="Easy" value={data.easy} total={data.easyTotal} color="var(--easy)" />
-                <ProgressBar label="Medium" value={data.medium} total={data.mediumTotal} color="var(--medium)" />
-                <ProgressBar label="Hard" value={data.hard} total={data.hardTotal} color="var(--hard)" />
+                <ProgressBar
+                  label="Easy"
+                  value={data.easy}
+                  total={data.easyTotal}
+                  color="var(--easy)"
+                />
+                <ProgressBar
+                  label="Medium"
+                  value={data.medium}
+                  total={data.mediumTotal}
+                  color="var(--medium)"
+                />
+                <ProgressBar
+                  label="Hard"
+                  value={data.hard}
+                  total={data.hardTotal}
+                  color="var(--hard)"
+                />
               </div>
             </div>
           </div>
