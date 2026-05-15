@@ -3,7 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Logo } from "./Logo";
 import { LogOut, Bell, Trophy, Flame } from "lucide-react";
 import { authService } from "@/services/authService";
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 
 function deriveStreak(id: string) {
   let h = 0;
@@ -15,11 +15,26 @@ export function Navbar() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
 
-  const rank = useMemo(() => {
-    if (!user) return 0;
-    const all = authService.listUsers();
-    const sorted = [...all].sort((a, b) => b.solvedProblems.length - a.solvedProblems.length);
-    return sorted.findIndex((u) => u.id === user.id) + 1;
+  const [rank, setRank] = useState(0);
+  useEffect(() => {
+    if (!user) {
+      setRank(0);
+      return;
+    }
+    let cancelled = false;
+    authService
+      .listUsers()
+      .then((all) => {
+        if (cancelled) return;
+        const sorted = [...all].sort((a, b) => b.solvedProblems.length - a.solvedProblems.length);
+        setRank(sorted.findIndex((u) => u.id === user.id) + 1);
+      })
+      .catch(() => {
+        if (!cancelled) setRank(0);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   const streak = user ? deriveStreak(user.id) : 0;

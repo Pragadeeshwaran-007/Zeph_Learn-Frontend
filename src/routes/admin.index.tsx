@@ -12,11 +12,20 @@ export const Route = createFileRoute("/admin/")({
 function AdminHome() {
   const [stats, setStats] = useState({ problems: 0, users: 0, submissions: 0 });
   useEffect(() => {
-    setStats({
-      problems: problemService.list().length,
-      users: authService.listUsers().length,
-      submissions: submissionService.list().length,
-    });
+    const problems = problemService.list().length;
+    const submissions = submissionService.list().length;
+    let cancelled = false;
+    authService
+      .listUsers()
+      .then((users) => {
+        if (!cancelled) setStats({ problems, users: users.length, submissions });
+      })
+      .catch(() => {
+        if (!cancelled) setStats({ problems, users: 0, submissions });
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (
@@ -24,9 +33,17 @@ function AdminHome() {
       <h1 className="text-2xl font-bold">Dashboard</h1>
       <p className="mt-1 text-sm text-muted-foreground">Overview of your platform.</p>
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        <Card icon={<ListChecks className="text-primary" />} label="Total Problems" value={stats.problems} />
+        <Card
+          icon={<ListChecks className="text-primary" />}
+          label="Total Problems"
+          value={stats.problems}
+        />
         <Card icon={<Users className="text-accent" />} label="Total Users" value={stats.users} />
-        <Card icon={<Send className="text-success" />} label="Total Submissions" value={stats.submissions} />
+        <Card
+          icon={<Send className="text-success" />}
+          label="Total Submissions"
+          value={stats.submissions}
+        />
       </div>
     </div>
   );
