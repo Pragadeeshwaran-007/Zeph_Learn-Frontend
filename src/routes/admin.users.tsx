@@ -65,8 +65,8 @@ function ManageUsers() {
             {!loading && users.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
-                  No users returned. Check that you are signed in as an admin and the backend
-                  exposes <code className="text-foreground">GET /api/admin/users</code>.
+                  No users returned. Sign in as an admin to load users from{" "}
+                  <code className="text-foreground">GET /api/users</code>.
                 </td>
               </tr>
             )}

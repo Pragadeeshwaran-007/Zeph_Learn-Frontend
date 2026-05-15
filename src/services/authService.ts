@@ -26,6 +26,17 @@ function authReadHeaders(): HeadersInit {
   };
 }
 
+async function apiError(response: Response, fallback: string): Promise<never> {
+  try {
+    const data = (await response.json()) as { error?: string; message?: string };
+    const msg = data?.error ?? data?.message;
+    if (msg) throw new Error(msg);
+  } catch (e) {
+    if (e instanceof Error && e.message !== fallback) throw e;
+  }
+  throw new Error(fallback);
+}
+
 function mapApiUser(row: Record<string, unknown>): PublicUser | null {
   const id = row.id ?? row.userId;
   if (id == null || id === "") return null;
@@ -56,7 +67,7 @@ export const authService = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
-    if (!response.ok) throw new Error("Invalid credentials");
+    if (!response.ok) return apiError(response, "Invalid credentials");
     const data = await response.json();
     const token = data.token;
     const user: PublicUser = {
@@ -82,7 +93,7 @@ export const authService = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, email, password }),
     });
-    if (!response.ok) throw new Error("Email already in use");
+    if (!response.ok) return apiError(response, "Sign up failed");
     const data = await response.json();
     const token = data.token;
     const user: PublicUser = {
@@ -108,14 +119,16 @@ export const authService = {
   },
 
   async listUsers(): Promise<PublicUser[]> {
-    const response = await fetch(`${BASE}/api/admin/users`, {
+    const me = ls.get<PublicUser | null>(STORAGE_KEYS.user, null);
+    if (me?.role !== "admin") return [];
+
+    const response = await fetch(`${BASE}/api/users`, {
       method: "GET",
       headers: authReadHeaders(),
     });
     if (!response.ok) {
       if (response.status === 401 || response.status === 403) return [];
-      const t = await response.text();
-      throw new Error(`Failed to load users: ${response.status} ${t.slice(0, 120)}`);
+      return apiError(response, "Failed to load users");
     }
     const raw: unknown = await response.json();
     const rows: unknown[] = Array.isArray(raw)
@@ -135,14 +148,11 @@ export const authService = {
   },
 
   async deleteUser(id: string): Promise<void> {
-    const response = await fetch(`${BASE}/api/admin/users/${encodeURIComponent(id)}`, {
+    const response = await fetch(`${BASE}/api/users/${encodeURIComponent(id)}`, {
       method: "DELETE",
       headers: authReadHeaders(),
     });
-    if (!response.ok) {
-      const t = await response.text();
-      throw new Error(`Delete failed: ${response.status} ${t.slice(0, 120)}`);
-    }
+    if (!response.ok) return apiError(response, "Delete failed");
   },
 
   markSolved(userId: string, problemId: string) {
