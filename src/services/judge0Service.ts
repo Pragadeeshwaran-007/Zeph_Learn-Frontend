@@ -9,6 +9,16 @@ export interface Judge0Result {
   memory: number | null;
 }
 
+function languageIdToName(id: number): string {
+  switch (id) {
+    case 54: return "cpp";
+    case 62: return "java";
+    case 71: return "python";
+    case 63: return "javascript";
+    default: return "python";
+  }
+}
+
 export const judge0Service = {
   async submit(opts: {
     source_code: string;
@@ -31,7 +41,7 @@ export const judge0Service = {
       },
       body: JSON.stringify({
         code: opts.source_code,
-        languageId: String(opts.language_id),
+        language: languageIdToName(opts.language_id),
         stdin: opts.stdin ?? "",
       }),
     });
