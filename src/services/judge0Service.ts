@@ -16,9 +16,19 @@ export const judge0Service = {
     stdin?: string;
     expected_output?: string;
   }): Promise<Judge0Result> {
+    const token = (() => {
+      try {
+        const v = localStorage.getItem("zeph_token");
+        return v ? JSON.parse(v) : null;
+      } catch { return null; }
+    })();
+
     const response = await fetch(`${BASE}/api/submissions/run`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({
         code: opts.source_code,
         languageId: String(opts.language_id),
