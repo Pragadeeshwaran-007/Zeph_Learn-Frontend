@@ -12,8 +12,8 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const { login } = useAuth();
   const nav = useNavigate();
-  const [email, setEmail] = useState("user@zephlearn.com");
-  const [password, setPassword] = useState("user123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
@@ -67,10 +67,7 @@ function LoginPage() {
           <Link to="/signup" className="text-primary hover:underline">Create an account</Link>
         </p>
 
-        <div className="mt-6 rounded-md border border-border/50 bg-secondary/40 p-3 text-xs text-muted-foreground">
-          <div><b className="text-foreground">Admin:</b> admin@zephlearn.com / admin123</div>
-          <div><b className="text-foreground">User:</b> user@zephlearn.com / user123</div>
-        </div>
+
       </form>
     </div>
   );

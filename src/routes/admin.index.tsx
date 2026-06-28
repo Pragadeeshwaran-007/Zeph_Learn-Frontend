@@ -12,20 +12,15 @@ export const Route = createFileRoute("/admin/")({
 function AdminHome() {
   const [stats, setStats] = useState({ problems: 0, users: 0, submissions: 0 });
   useEffect(() => {
-    const problems = problemService.list().length;
     const submissions = submissionService.list().length;
     let cancelled = false;
-    authService
-      .listUsers()
-      .then((users) => {
-        if (!cancelled) setStats({ problems, users: users.length, submissions });
-      })
-      .catch(() => {
-        if (!cancelled) setStats({ problems, users: 0, submissions });
-      });
-    return () => {
-      cancelled = true;
-    };
+    Promise.all([
+      problemService.list().catch(() => []),
+      authService.listUsers().catch(() => []),
+    ]).then(([problems, users]) => {
+      if (!cancelled) setStats({ problems: problems.length, users: users.length, submissions });
+    });
+    return () => { cancelled = true; };
   }, []);
 
   return (

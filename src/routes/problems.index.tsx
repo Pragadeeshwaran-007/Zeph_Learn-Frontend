@@ -24,7 +24,7 @@ function ProblemsList() {
   const [catSel, setCatSel] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    setTimeout(() => setProblems(problemService.list()), 200);
+    problemService.list().then((data) => setProblems(data)).catch(() => setProblems([]));
   }, []);
 
   const solved = useMemo(() => new Set(user?.solvedProblems ?? []), [user]);

@@ -1,5 +1,6 @@
 import { ls, STORAGE_KEYS } from "@/utils/storage";
-import { SEED_PROBLEMS } from "@/utils/seedData";
+
+const BASE = import.meta.env.VITE_API_BASE_URL || "https://zeph-learn-backend.onrender.com";
 
 export interface TestCase {
   input: string;
@@ -21,27 +22,128 @@ export interface Problem {
   hiddenTestCases: TestCase[];
 }
 
-function ensureSeed() {
-  const existing = ls.get<Problem[] | null>(STORAGE_KEYS.problems, null);
-  if (!existing || existing.length === 0) ls.set(STORAGE_KEYS.problems, SEED_PROBLEMS);
+// Backend shape
+interface ApiTestCase {
+  input: string;
+  expectedOutput: string;
+  hidden: boolean;
+}
+
+interface ApiProblem {
+  id: number;
+  title: string;
+  difficulty: string;
+  category: string;
+  description: string;
+  inputFormat: string;
+  outputFormat: string;
+  constraints: string;
+  testCases: ApiTestCase[];
+}
+
+function storedToken(): string | null {
+  const raw = ls.get<string | null>(STORAGE_KEYS.token, null);
+  return typeof raw === "string" && raw.length > 0 ? raw : null;
+}
+
+function authHeaders(): HeadersInit {
+  const t = storedToken();
+  return {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...(t ? { Authorization: `Bearer ${t}` } : {}),
+  };
+}
+
+function fromApi(p: ApiProblem): Problem {
+  const testCases: ApiTestCase[] = Array.isArray(p.testCases) ? p.testCases : [];
+  return {
+    id: String(p.id),
+    title: p.title ?? "",
+    difficulty: (p.difficulty as Difficulty) ?? "Easy",
+    category: p.category ?? "",
+    description: p.description ?? "",
+    inputFormat: p.inputFormat ?? "",
+    outputFormat: p.outputFormat ?? "",
+    constraints: p.constraints ?? "",
+    sampleTestCases: testCases
+      .filter((tc) => !tc.hidden)
+      .map((tc) => ({ input: tc.input, expectedOutput: tc.expectedOutput })),
+    hiddenTestCases: testCases
+      .filter((tc) => tc.hidden)
+      .map((tc) => ({ input: tc.input, expectedOutput: tc.expectedOutput })),
+  };
+}
+
+function toApi(p: Problem): Omit<ApiProblem, "id"> {
+  const testCases: ApiTestCase[] = [
+    ...p.sampleTestCases.map((tc) => ({ ...tc, hidden: false })),
+    ...p.hiddenTestCases.map((tc) => ({ ...tc, hidden: true })),
+  ];
+  return {
+    title: p.title,
+    difficulty: p.difficulty,
+    category: p.category,
+    description: p.description,
+    inputFormat: p.inputFormat,
+    outputFormat: p.outputFormat,
+    constraints: p.constraints,
+    testCases,
+  };
+}
+
+async function handleError(res: Response, fallback: string): Promise<never> {
+  try {
+    const data = (await res.json()) as { error?: string; message?: string };
+    const msg = data?.error ?? data?.message;
+    if (msg) throw new Error(msg);
+  } catch (e) {
+    if (e instanceof Error && e.message !== fallback) throw e;
+  }
+  throw new Error(fallback);
 }
 
 export const problemService = {
-  list(): Problem[] {
-    ensureSeed();
-    return ls.get<Problem[]>(STORAGE_KEYS.problems, SEED_PROBLEMS);
+  async list(): Promise<Problem[]> {
+    const res = await fetch(`${BASE}/api/problems`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) return handleError(res, "Failed to load problems");
+    const data: ApiProblem[] = await res.json();
+    return data.map(fromApi);
   },
-  get(id: string): Problem | undefined {
-    return this.list().find((p) => p.id === id);
+
+  async get(id: string): Promise<Problem | undefined> {
+    const res = await fetch(`${BASE}/api/problems/${encodeURIComponent(id)}`, {
+      headers: authHeaders(),
+    });
+    if (res.status === 404) return undefined;
+    if (!res.ok) return handleError(res, "Failed to load problem");
+    const data: ApiProblem = await res.json();
+    return fromApi(data);
   },
-  save(p: Problem) {
-    const all = this.list();
-    const idx = all.findIndex((x) => x.id === p.id);
-    if (idx >= 0) all[idx] = p;
-    else all.push({ ...p, id: p.id || `p-${Date.now()}` });
-    ls.set(STORAGE_KEYS.problems, all);
+
+  async save(p: Problem): Promise<Problem> {
+    const isNew = !p.id || p.id === "";
+    const url = isNew
+      ? `${BASE}/api/problems`
+      : `${BASE}/api/problems/${encodeURIComponent(p.id)}`;
+    const method = isNew ? "POST" : "PUT";
+    const res = await fetch(url, {
+      method,
+      headers: authHeaders(),
+      body: JSON.stringify(toApi(p)),
+    });
+    if (!res.ok) return handleError(res, isNew ? "Failed to create problem" : "Failed to update problem");
+    const data: ApiProblem = await res.json();
+    return fromApi(data);
   },
-  remove(id: string) {
-    ls.set(STORAGE_KEYS.problems, this.list().filter((p) => p.id !== id));
+
+  async remove(id: string): Promise<void> {
+    const res = await fetch(`${BASE}/api/problems/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
+    if (!res.ok) return handleError(res, "Failed to delete problem");
   },
 };

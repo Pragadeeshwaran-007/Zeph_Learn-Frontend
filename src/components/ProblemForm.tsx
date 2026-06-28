@@ -3,7 +3,7 @@ import { useNavigate, Link } from "@tanstack/react-router";
 import type { Problem, TestCase, Difficulty } from "@/services/problemService";
 import { problemService } from "@/services/problemService";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Loader2 } from "lucide-react";
 
 const empty: Problem = {
   id: "",
@@ -43,12 +43,21 @@ export function ProblemForm({ initial, mode }: { initial?: Problem; mode: "new" 
   const removeTC = (field: "sampleTestCases" | "hiddenTestCases", idx: number) =>
     setP((s) => ({ ...s, [field]: s[field].filter((_, i) => i !== idx) }));
 
-  const onSubmit = (e: React.FormEvent) => {
+  const [saving, setSaving] = useState(false);
+
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!p.title.trim()) return toast.error("Title is required");
-    problemService.save(p);
-    toast.success(mode === "new" ? "Problem created" : "Problem updated");
-    nav({ to: "/admin/problems" });
+    setSaving(true);
+    try {
+      await problemService.save(p);
+      toast.success(mode === "new" ? "Problem created" : "Problem updated");
+      nav({ to: "/admin/problems" });
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -102,7 +111,8 @@ export function ProblemForm({ initial, mode }: { initial?: Problem; mode: "new" 
 
       <div className="flex justify-end gap-2">
         <Link to="/admin/problems" className="rounded-md border border-border px-4 py-2 text-sm">Cancel</Link>
-        <button className="rounded-md gradient-brand px-5 py-2 text-sm font-semibold text-white">
+        <button disabled={saving} className="inline-flex items-center gap-2 rounded-md gradient-brand px-5 py-2 text-sm font-semibold text-white disabled:opacity-60">
+          {saving ? <Loader2 size={14} className="animate-spin" /> : null}
           {mode === "new" ? "Create" : "Update"}
         </button>
       </div>

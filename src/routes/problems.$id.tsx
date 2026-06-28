@@ -41,7 +41,7 @@ function ProblemSolver() {
   } | null>(null);
 
   useEffect(() => {
-    setProblem(problemService.get(id));
+    problemService.get(id).then((p) => setProblem(p));
   }, [id]);
 
   useEffect(() => {
