@@ -153,11 +153,11 @@ function ProblemSolver() {
       });
 
       if (pass) {
-        toast.success("Accepted");
+        toast.success(`Accepted (${res.passedCount}/${res.totalCount} cases passed)`);
         authService.markSolved(user.id, problem.id);
         refresh();
       } else {
-        toast.error(res.verdict);
+        toast.error(`${res.verdict} (${res.passedCount}/${res.totalCount} cases passed)`);
       }
     } catch (e) {
       toast.error((e as Error).message);
