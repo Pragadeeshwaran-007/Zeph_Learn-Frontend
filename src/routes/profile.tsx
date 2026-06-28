@@ -14,12 +14,6 @@ export const Route = createFileRoute("/profile")({
   component: ProfilePage,
 });
 
-function deriveStreak(id: string) {
-  let h = 0;
-  for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return (h % 30) + 1;
-}
-
 function ProfilePage() {
   const { user, loading } = useRequireAuth();
   const [allUsers, setAllUsers] = useState<PublicUser[]>([]);
@@ -69,7 +63,7 @@ function ProfilePage() {
 
   if (loading || !user || !data) return null;
 
-  const streak = deriveStreak(user.id);
+  const streak = user.streak ?? 0;
 
   return (
     <div className="min-h-screen bg-background">

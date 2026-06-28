@@ -8,6 +8,7 @@ export interface User {
   email: string;
   role: "admin" | "user";
   solvedProblems: string[];
+  streak: number;
   createdAt: string;
 }
 
@@ -50,13 +51,36 @@ function mapApiUser(row: Record<string, unknown>): PublicUser | null {
     (typeof row.createdAt === "string" && row.createdAt) ||
     (typeof row.created_at === "string" && row.created_at) ||
     new Date().toISOString();
+  const streakRaw = row.streak;
+  const streak =
+    typeof streakRaw === "number" && Number.isFinite(streakRaw)
+      ? streakRaw
+      : Number.parseInt(String(streakRaw ?? "0"), 10) || 0;
   return {
     id: String(id),
     name: String(row.name ?? ""),
     email: String(row.email ?? ""),
     role,
     solvedProblems: solved,
+    streak,
     createdAt: created,
+  };
+}
+
+function mapAuthUser(data: Record<string, unknown>): PublicUser {
+  const streakRaw = data.streak;
+  const streak =
+    typeof streakRaw === "number" && Number.isFinite(streakRaw)
+      ? streakRaw
+      : Number.parseInt(String(streakRaw ?? "0"), 10) || 0;
+  return {
+    id: String(data.id),
+    name: String(data.name ?? ""),
+    email: String(data.email ?? ""),
+    role: String(data.role ?? "user").toLowerCase() === "admin" ? "admin" : "user",
+    solvedProblems: [],
+    streak,
+    createdAt: new Date().toISOString(),
   };
 }
 
@@ -68,16 +92,9 @@ export const authService = {
       body: JSON.stringify({ email, password }),
     });
     if (!response.ok) return apiError(response, "Invalid credentials");
-    const data = await response.json();
-    const token = data.token;
-    const user: PublicUser = {
-      id: String(data.id),
-      name: data.name,
-      email: data.email,
-      role: data.role?.toLowerCase() === "admin" ? "admin" : "user",
-      solvedProblems: [],
-      createdAt: new Date().toISOString(),
-    };
+    const data = (await response.json()) as Record<string, unknown>;
+    const token = String(data.token);
+    const user = mapAuthUser(data);
     ls.set(STORAGE_KEYS.token, token);
     ls.set(STORAGE_KEYS.user, user);
     return { user, token };
@@ -94,19 +111,33 @@ export const authService = {
       body: JSON.stringify({ name, email, password }),
     });
     if (!response.ok) return apiError(response, "Sign up failed");
-    const data = await response.json();
-    const token = data.token;
-    const user: PublicUser = {
-      id: String(data.id),
-      name: data.name,
-      email: data.email,
-      role: data.role?.toLowerCase() === "admin" ? "admin" : "user",
-      solvedProblems: [],
-      createdAt: new Date().toISOString(),
-    };
+    const data = (await response.json()) as Record<string, unknown>;
+    const token = String(data.token);
+    const user = mapAuthUser(data);
     ls.set(STORAGE_KEYS.token, token);
     ls.set(STORAGE_KEYS.user, user);
     return { user, token };
+  },
+
+  async fetchProfile(userId: string): Promise<PublicUser | null> {
+    const cur = ls.get<PublicUser | null>(STORAGE_KEYS.user, null);
+    if (!cur || cur.id !== userId) return null;
+
+    const response = await fetch(`${BASE}/api/users/profile/${encodeURIComponent(userId)}`, {
+      method: "GET",
+      headers: authReadHeaders(),
+    });
+    if (!response.ok) return cur;
+
+    const data = (await response.json()) as Record<string, unknown>;
+    const streakRaw = data.streak;
+    const streak =
+      typeof streakRaw === "number" && Number.isFinite(streakRaw)
+        ? streakRaw
+        : Number.parseInt(String(streakRaw ?? cur.streak ?? "0"), 10) || 0;
+    const user: PublicUser = { ...cur, streak };
+    ls.set(STORAGE_KEYS.user, user);
+    return user;
   },
 
   logout() {

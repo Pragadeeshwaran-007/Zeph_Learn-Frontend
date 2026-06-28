@@ -3,13 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Logo } from "./Logo";
 import { LogOut, Bell, Trophy, Flame } from "lucide-react";
 import { authService } from "@/services/authService";
-import { useEffect, useState } from "react";
-
-function deriveStreak(id: string) {
-  let h = 0;
-  for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return (h % 30) + 1;
-}
+import { useEffect, useRef, useState } from "react";
 
 export function Navbar() {
   const { user, logout } = useAuth();
@@ -37,7 +31,7 @@ export function Navbar() {
     };
   }, [user]);
 
-  const streak = user ? deriveStreak(user.id) : 0;
+  const streak = user?.streak ?? 0;
 
   const onLogout = () => {
     logout();
@@ -82,13 +76,7 @@ export function Navbar() {
         <div className="flex items-center gap-3">
           {user ? (
             <>
-              <button
-                aria-label="Notifications"
-                className="relative inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition"
-              >
-                <Bell size={16} />
-                <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
-              </button>
+              <NotificationBell />
               <div
                 className="hidden sm:inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs"
                 title="Global rank"
@@ -131,5 +119,62 @@ export function Navbar() {
         </div>
       </div>
     </header>
+  );
+}
+
+function NotificationBell() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        id="notification-bell-btn"
+        aria-label="Notifications"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="relative inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition"
+      >
+        <Bell size={16} />
+        <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
+      </button>
+
+      {open && (
+        <div
+          id="notification-dropdown"
+          className="absolute right-0 top-full mt-2 w-72 rounded-xl border border-border bg-card shadow-xl z-50 overflow-hidden"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <span className="text-sm font-semibold text-foreground">Notifications</span>
+            <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              0 new
+            </span>
+          </div>
+
+          {/* Empty state */}
+          <div className="flex flex-col items-center justify-center gap-3 px-4 py-10 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary/60">
+              <Bell size={22} className="text-muted-foreground/50" />
+            </div>
+            <p className="text-sm font-medium text-muted-foreground">No notifications yet</p>
+            <p className="text-xs text-muted-foreground/60">
+              You'll see activity here once you start solving problems.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

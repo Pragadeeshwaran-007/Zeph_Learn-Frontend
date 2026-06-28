@@ -17,8 +17,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setUser(authService.current());
-    setLoading(false);
+    const cur = authService.current();
+    if (!cur) {
+      setLoading(false);
+      return;
+    }
+    authService
+      .fetchProfile(cur.id)
+      .then((u) => setUser(u ?? cur))
+      .catch(() => setUser(cur))
+      .finally(() => setLoading(false));
   }, []);
 
   return (
@@ -40,7 +48,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           authService.logout();
           setUser(null);
         },
-        refresh: () => setUser(authService.current()),
+        refresh: () => {
+          const cur = authService.current();
+          if (!cur) return;
+          authService
+            .fetchProfile(cur.id)
+            .then((u) => setUser(u ?? cur))
+            .catch(() => setUser(cur));
+        },
       }}
     >
       {children}
