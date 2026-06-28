@@ -1,9 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Navbar } from "@/components/Navbar";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
-import { problemService } from "@/services/problemService";
+import { problemService, type Problem } from "@/services/problemService";
 import { submissionService } from "@/services/submissionService";
-import { authService, type PublicUser } from "@/services/authService";
 import { useEffect, useMemo, useState } from "react";
 import { CircularProgress } from "@/components/CircularProgress";
 import { Flame, Trophy } from "lucide-react";
@@ -15,38 +14,35 @@ export const Route = createFileRoute("/profile")({
 });
 
 function ProfilePage() {
-  const { user, loading } = useRequireAuth();
-  const [allUsers, setAllUsers] = useState<PublicUser[]>([]);
+  const { user, loading, refresh } = useRequireAuth();
+  const [problems, setProblems] = useState<Problem[] | null>(null);
 
   useEffect(() => {
-    if (!user) {
-      setAllUsers([]);
-      return;
-    }
-    let cancelled = false;
-    authService
-      .listUsers()
-      .then((list) => {
-        if (!cancelled) setAllUsers(list);
-      })
-      .catch(() => {
-        if (!cancelled) setAllUsers([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
+    problemService
+      .list()
+      .then((data) => setProblems(data))
+      .catch(() => setProblems([]));
+  }, []);
+
+  useEffect(() => {
+    if (user) refresh();
+  }, [user?.id, refresh]);
+
+  const problemById = useMemo(() => {
+    const map = new Map<string, Problem>();
+    for (const p of problems ?? []) map.set(p.id, p);
+    return map;
+  }, [problems]);
 
   const data = useMemo(() => {
-    if (!user) return null;
-    const all = problemService.list();
-    const solved = all.filter((p) => user.solvedProblems.includes(p.id));
+    if (!user || !problems) return null;
+    const solvedIds = Array.isArray(user.solvedProblems) ? user.solvedProblems : [];
+    const all = problems;
+    const solved = all.filter((p) => solvedIds.includes(p.id));
     const subs = submissionService
       .list()
       .filter((s) => s.userId === user.id)
       .slice(0, 8);
-    const sorted = [...allUsers].sort((a, b) => b.solvedProblems.length - a.solvedProblems.length);
-    const rank = sorted.findIndex((u) => u.id === user.id) + 1;
     return {
       total: all.length,
       solved,
@@ -57,9 +53,9 @@ function ProfilePage() {
       medium: solved.filter((p) => p.difficulty === "Medium").length,
       hard: solved.filter((p) => p.difficulty === "Hard").length,
       subs,
-      rank,
+      rank: user.rank ?? 0,
     };
-  }, [user, allUsers]);
+  }, [user, problems]);
 
   if (loading || !user || !data) return null;
 
@@ -162,7 +158,7 @@ function ProfilePage() {
                 </thead>
                 <tbody>
                   {data.subs.map((s) => {
-                    const p = problemService.get(s.problemId);
+                    const p = problemById.get(s.problemId);
                     return (
                       <tr key={s.id} className="border-t border-border">
                         <td className="px-4 py-2.5">

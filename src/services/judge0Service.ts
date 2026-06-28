@@ -46,6 +46,7 @@ export const judge0Service = {
         code: opts.source_code,
         language: languageIdToName(opts.language_id),
         stdin: opts.stdin ?? "",
+        ...(opts.expected_output != null ? { expectedOutput: opts.expected_output } : {}),
       }),
     });
 

@@ -72,14 +72,50 @@ function ProblemSolver() {
     setOutput(null);
     setShowOutput(true);
     try {
-      const t = problem.sampleTestCases[0];
-      const r = await judge0Service.submit({ source_code: code, language_id: languageId, stdin: t?.input ?? "" });
+      const cases = problem.sampleTestCases;
+      const results: NonNullable<typeof output>["cases"] = [];
+      let allPass = true;
+      let lastTime = "";
+      let lastMem = 0;
+      for (let i = 0; i < cases.length; i++) {
+        const t = cases[i];
+        const r = await judge0Service.submit({
+          source_code: code,
+          language_id: languageId,
+          stdin: t.input,
+          expected_output: t.expectedOutput,
+        });
+        const got = (r.stdout ?? "").trim();
+        const exp = t.expectedOutput.trim();
+        const pass = r.status.id === 3 || got === exp;
+        if (!pass) allPass = false;
+        lastTime = r.time ?? lastTime;
+        lastMem = r.memory ?? lastMem;
+        results.push({
+          idx: i + 1,
+          pass,
+          expected: exp,
+          got,
+          verdict: verdictFromStatusId(r.status.id),
+        });
+        // Stop early on first compile/runtime error
+        if (r.stderr || r.compile_output) {
+          setOutput({
+            verdict: verdictFromStatusId(r.status.id),
+            stdout: r.stdout,
+            stderr: r.stderr ?? r.compile_output,
+            time: r.time,
+            memory: r.memory,
+            cases: results,
+          });
+          return;
+        }
+      }
       setOutput({
-        verdict: verdictFromStatusId(r.status.id),
-        stdout: r.stdout,
-        stderr: r.stderr ?? r.compile_output,
-        time: r.time,
-        memory: r.memory,
+        verdict: allPass ? "Accepted" : "Wrong Answer",
+        cases: results,
+        time: lastTime,
+        memory: lastMem,
       });
     } catch (e) {
       toast.error((e as Error).message);

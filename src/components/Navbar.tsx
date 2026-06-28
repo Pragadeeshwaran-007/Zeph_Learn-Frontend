@@ -2,36 +2,14 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/context/AuthContext";
 import { Logo } from "./Logo";
 import { LogOut, Bell, Trophy, Flame } from "lucide-react";
-import { authService } from "@/services/authService";
 import { useEffect, useRef, useState } from "react";
 
 export function Navbar() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
 
-  const [rank, setRank] = useState(0);
-  useEffect(() => {
-    if (!user) {
-      setRank(0);
-      return;
-    }
-    let cancelled = false;
-    authService
-      .listUsers()
-      .then((all) => {
-        if (cancelled) return;
-        const sorted = [...all].sort((a, b) => b.solvedProblems.length - a.solvedProblems.length);
-        setRank(sorted.findIndex((u) => u.id === user.id) + 1);
-      })
-      .catch(() => {
-        if (!cancelled) setRank(0);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
-
   const streak = user?.streak ?? 0;
+  const rank = user?.rank ?? 0;
 
   const onLogout = () => {
     logout();

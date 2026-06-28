@@ -14,7 +14,8 @@ export interface Submission {
 
 export const submissionService = {
   list(): Submission[] {
-    return ls.get<Submission[]>(STORAGE_KEYS.submissions, []);
+    const raw = ls.get<Submission[]>(STORAGE_KEYS.submissions, []);
+    return Array.isArray(raw) ? raw : [];
   },
   add(s: Omit<Submission, "id" | "submittedAt">) {
     const all = this.list();

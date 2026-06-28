@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { authService, type PublicUser } from "@/services/authService";
 
 interface AuthCtx {
@@ -29,6 +29,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setLoading(false));
   }, []);
 
+  const refresh = useCallback(() => {
+    const cur = authService.current();
+    if (!cur) {
+      setUser(null);
+      return;
+    }
+    authService
+      .fetchProfile(cur.id)
+      .then((u) => setUser(u ?? cur))
+      .catch(() => setUser(cur));
+  }, []);
+
   return (
     <Ctx.Provider
       value={{
@@ -36,26 +48,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         login: async (e, p) => {
           const { user } = await authService.login(e, p);
-          setUser(user);
-          return user;
+          const synced = (await authService.fetchProfile(user.id)) ?? user;
+          setUser(synced);
+          return synced;
         },
         signup: async (n, e, p) => {
           const { user } = await authService.signup(n, e, p);
-          setUser(user);
-          return user;
+          const synced = (await authService.fetchProfile(user.id)) ?? user;
+          setUser(synced);
+          return synced;
         },
         logout: () => {
           authService.logout();
           setUser(null);
         },
-        refresh: () => {
-          const cur = authService.current();
-          if (!cur) return;
-          authService
-            .fetchProfile(cur.id)
-            .then((u) => setUser(u ?? cur))
-            .catch(() => setUser(cur));
-        },
+        refresh,
       }}
     >
       {children}

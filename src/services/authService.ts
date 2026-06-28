@@ -9,6 +9,7 @@ export interface User {
   role: "admin" | "user";
   solvedProblems: string[];
   streak: number;
+  rank?: number;
   createdAt: string;
 }
 
@@ -38,6 +39,46 @@ async function apiError(response: Response, fallback: string): Promise<never> {
   throw new Error(fallback);
 }
 
+function parseStreak(value: unknown, fallback = 0): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  return Number.parseInt(String(value ?? fallback), 10) || fallback;
+}
+
+function parseStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((x) => String(x));
+}
+
+function normalizeUser(user: PublicUser | null): PublicUser | null {
+  if (!user) return null;
+  return {
+    ...user,
+    solvedProblems: Array.isArray(user.solvedProblems) ? user.solvedProblems : [],
+    streak: parseStreak(user.streak),
+    rank: typeof user.rank === "number" && Number.isFinite(user.rank) ? user.rank : undefined,
+  };
+}
+
+function mergeProfile(cur: PublicUser, data: Record<string, unknown>): PublicUser {
+  const solvedRaw = data.solvedProblemIds ?? data.solvedProblems ?? data.solved_problems;
+  const solvedFromApi = parseStringArray(solvedRaw);
+  const rankRaw = data.rank;
+  const rank =
+    typeof rankRaw === "number" && Number.isFinite(rankRaw)
+      ? rankRaw
+      : Number.parseInt(String(rankRaw ?? ""), 10) || undefined;
+
+  return normalizeUser({
+    ...cur,
+    name: String(data.name ?? cur.name),
+    email: String(data.email ?? cur.email),
+    role: String(data.role ?? cur.role).toLowerCase().includes("admin") ? "admin" : cur.role,
+    streak: parseStreak(data.streak, cur.streak),
+    solvedProblems: solvedFromApi.length > 0 ? solvedFromApi : cur.solvedProblems,
+    rank: rank && rank > 0 ? rank : cur.rank,
+  })!;
+}
+
 function mapApiUser(row: Record<string, unknown>): PublicUser | null {
   const id = row.id ?? row.userId;
   if (id == null || id === "") return null;
@@ -52,10 +93,12 @@ function mapApiUser(row: Record<string, unknown>): PublicUser | null {
     (typeof row.created_at === "string" && row.created_at) ||
     new Date().toISOString();
   const streakRaw = row.streak;
-  const streak =
-    typeof streakRaw === "number" && Number.isFinite(streakRaw)
-      ? streakRaw
-      : Number.parseInt(String(streakRaw ?? "0"), 10) || 0;
+  const streak = parseStreak(streakRaw);
+  const rankRaw = row.rank;
+  const rank =
+    typeof rankRaw === "number" && Number.isFinite(rankRaw)
+      ? rankRaw
+      : Number.parseInt(String(rankRaw ?? ""), 10) || undefined;
   return {
     id: String(id),
     name: String(row.name ?? ""),
@@ -63,23 +106,19 @@ function mapApiUser(row: Record<string, unknown>): PublicUser | null {
     role,
     solvedProblems: solved,
     streak,
+    rank: rank && rank > 0 ? rank : undefined,
     createdAt: created,
   };
 }
 
 function mapAuthUser(data: Record<string, unknown>): PublicUser {
-  const streakRaw = data.streak;
-  const streak =
-    typeof streakRaw === "number" && Number.isFinite(streakRaw)
-      ? streakRaw
-      : Number.parseInt(String(streakRaw ?? "0"), 10) || 0;
   return {
     id: String(data.id),
     name: String(data.name ?? ""),
     email: String(data.email ?? ""),
     role: String(data.role ?? "user").toLowerCase() === "admin" ? "admin" : "user",
     solvedProblems: [],
-    streak,
+    streak: parseStreak(data.streak),
     createdAt: new Date().toISOString(),
   };
 }
@@ -94,7 +133,7 @@ export const authService = {
     if (!response.ok) return apiError(response, "Invalid credentials");
     const data = (await response.json()) as Record<string, unknown>;
     const token = String(data.token);
-    const user = mapAuthUser(data);
+    const user = normalizeUser(mapAuthUser(data))!;
     ls.set(STORAGE_KEYS.token, token);
     ls.set(STORAGE_KEYS.user, user);
     return { user, token };
@@ -113,14 +152,14 @@ export const authService = {
     if (!response.ok) return apiError(response, "Sign up failed");
     const data = (await response.json()) as Record<string, unknown>;
     const token = String(data.token);
-    const user = mapAuthUser(data);
+    const user = normalizeUser(mapAuthUser(data))!;
     ls.set(STORAGE_KEYS.token, token);
     ls.set(STORAGE_KEYS.user, user);
     return { user, token };
   },
 
   async fetchProfile(userId: string): Promise<PublicUser | null> {
-    const cur = ls.get<PublicUser | null>(STORAGE_KEYS.user, null);
+    const cur = normalizeUser(ls.get<PublicUser | null>(STORAGE_KEYS.user, null));
     if (!cur || cur.id !== userId) return null;
 
     const response = await fetch(`${BASE}/api/users/profile/${encodeURIComponent(userId)}`, {
@@ -130,12 +169,7 @@ export const authService = {
     if (!response.ok) return cur;
 
     const data = (await response.json()) as Record<string, unknown>;
-    const streakRaw = data.streak;
-    const streak =
-      typeof streakRaw === "number" && Number.isFinite(streakRaw)
-        ? streakRaw
-        : Number.parseInt(String(streakRaw ?? cur.streak ?? "0"), 10) || 0;
-    const user: PublicUser = { ...cur, streak };
+    const user = mergeProfile(cur, data);
     ls.set(STORAGE_KEYS.user, user);
     return user;
   },
@@ -146,7 +180,7 @@ export const authService = {
   },
 
   current(): PublicUser | null {
-    return ls.get<PublicUser | null>(STORAGE_KEYS.user, null);
+    return normalizeUser(ls.get<PublicUser | null>(STORAGE_KEYS.user, null));
   },
 
   async listUsers(): Promise<PublicUser[]> {
@@ -187,7 +221,7 @@ export const authService = {
   },
 
   markSolved(userId: string, problemId: string) {
-    const cur = ls.get<PublicUser | null>(STORAGE_KEYS.user, null);
+    const cur = normalizeUser(ls.get<PublicUser | null>(STORAGE_KEYS.user, null));
     if (cur && cur.id === userId && !cur.solvedProblems.includes(problemId)) {
       cur.solvedProblems.push(problemId);
       ls.set(STORAGE_KEYS.user, cur);

@@ -109,8 +109,9 @@ export const problemService = {
       headers: authHeaders(),
     });
     if (!res.ok) return handleError(res, "Failed to load problems");
-    const data: ApiProblem[] = await res.json();
-    return data.map(fromApi);
+    const data: unknown = await res.json();
+    const rows = Array.isArray(data) ? data : [];
+    return rows.map((row) => fromApi(row as ApiProblem));
   },
 
   async get(id: string): Promise<Problem | undefined> {
