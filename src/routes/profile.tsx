@@ -16,6 +16,7 @@ export const Route = createFileRoute("/profile")({
 function ProfilePage() {
   const { user, loading, refresh } = useRequireAuth();
   const [problems, setProblems] = useState<Problem[] | null>(null);
+  const [subs, setSubs] = useState<any[]>([]);
 
   useEffect(() => {
     problemService
@@ -25,7 +26,10 @@ function ProfilePage() {
   }, []);
 
   useEffect(() => {
-    if (user) refresh();
+    if (user) {
+      refresh();
+      submissionService.list(user.id).then(data => setSubs(data));
+    }
   }, [user?.id, refresh]);
 
   const problemById = useMemo(() => {
@@ -39,10 +43,6 @@ function ProfilePage() {
     const solvedIds = Array.isArray(user.solvedProblems) ? user.solvedProblems : [];
     const all = problems;
     const solved = all.filter((p) => solvedIds.includes(p.id));
-    const subs = submissionService
-      .list()
-      .filter((s) => s.userId === user.id)
-      .slice(0, 8);
     return {
       total: all.length,
       solved,
@@ -52,10 +52,10 @@ function ProfilePage() {
       easy: solved.filter((p) => p.difficulty === "Easy").length,
       medium: solved.filter((p) => p.difficulty === "Medium").length,
       hard: solved.filter((p) => p.difficulty === "Hard").length,
-      subs,
+      subs: subs.slice(0, 8),
       rank: user.rank ?? 0,
     };
-  }, [user, problems]);
+  }, [user, problems, subs]);
 
   if (loading || !user || !data) return null;
 
@@ -182,7 +182,7 @@ function ProfilePage() {
                           {s.verdict}
                         </td>
                         <td className="px-4 py-2.5 text-muted-foreground">
-                          {getLanguage(s.language).name}
+                          {s.language}
                         </td>
                         <td className="px-4 py-2.5 text-right text-xs text-muted-foreground">
                           {new Date(s.submittedAt).toLocaleString()}

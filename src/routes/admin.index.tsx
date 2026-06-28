@@ -12,13 +12,12 @@ export const Route = createFileRoute("/admin/")({
 function AdminHome() {
   const [stats, setStats] = useState({ problems: 0, users: 0, submissions: 0 });
   useEffect(() => {
-    const submissions = submissionService.list().length;
     let cancelled = false;
     Promise.all([
       problemService.list().catch(() => []),
       authService.listUsers().catch(() => []),
     ]).then(([problems, users]) => {
-      if (!cancelled) setStats({ problems: problems.length, users: users.length, submissions });
+      if (!cancelled) setStats({ problems: problems.length, users: users.length, submissions: 0 }); // Submissions not fetchable globally in current backend
     });
     return () => { cancelled = true; };
   }, []);

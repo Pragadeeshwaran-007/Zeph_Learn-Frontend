@@ -48,10 +48,15 @@ function ProblemSolver() {
     setCode(getLanguage(languageId).boilerplate);
   }, [languageId]);
 
-  const submissions = useMemo(
-    () => (user && problem ? submissionService.list().filter((s) => s.userId === user.id && s.problemId === problem.id) : []),
-    [user, problem, output]
-  );
+  const [submissions, setSubmissions] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (user && problem) {
+      submissionService.list(user.id).then((all) => {
+        setSubmissions(all.filter((s) => s.problemId === problem.id));
+      });
+    }
+  }, [user, problem, output]);
 
   if (loading || !user) return null;
   if (!problem)
@@ -129,50 +134,30 @@ function ProblemSolver() {
     setOutput(null);
     setShowOutput(true);
     try {
-      const cases = problem.hiddenTestCases;
-      const results: NonNullable<typeof output>["cases"] = [];
-      let allPass = true;
-      let lastTime = "";
-      let lastMem = 0;
-      for (let i = 0; i < cases.length; i++) {
-        const t = cases[i];
-        const r = await judge0Service.submit({
-          source_code: code,
-          language_id: languageId,
-          stdin: t.input,
-          expected_output: t.expectedOutput,
-        });
-        const got = (r.stdout ?? "").trim();
-        const exp = t.expectedOutput.trim();
-        const pass = r.status.id === 3 || got === exp;
-        if (!pass) allPass = false;
-        lastTime = r.time ?? lastTime;
-        lastMem = r.memory ?? lastMem;
-        results.push({
+      const languageStr = getLanguage(languageId).monaco;
+      const res = await submissionService.submit(problem.id, code, languageStr);
+
+      const pass = res.verdict === "Accepted";
+      
+      setOutput({
+        verdict: res.verdict,
+        time: res.executionTime ?? "",
+        memory: res.memory ? Number(res.memory) : 0,
+        cases: res.results ? res.results.map((r, i) => ({
           idx: i + 1,
-          pass,
-          expected: exp,
-          got,
-          verdict: verdictFromStatusId(r.status.id),
-        });
-      }
-      const verdict = allPass ? "Accepted" : "Wrong Answer";
-      setOutput({ verdict, cases: results, time: lastTime, memory: lastMem });
-      submissionService.add({
-        userId: user.id,
-        problemId: problem.id,
-        code,
-        language: languageId,
-        verdict,
-        time: lastTime,
-        memory: lastMem,
+          pass: r.passed,
+          expected: r.expectedOutput,
+          got: r.actualOutput,
+          verdict: r.passed ? "Passed" : "Wrong Answer"
+        })) : []
       });
-      if (allPass) {
+
+      if (pass) {
         toast.success("Accepted");
         authService.markSolved(user.id, problem.id);
         refresh();
       } else {
-        toast.error("Wrong Answer");
+        toast.error(res.verdict);
       }
     } catch (e) {
       toast.error((e as Error).message);
@@ -268,7 +253,7 @@ function ProblemSolver() {
                         {s.verdict}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {getLanguage(s.language).name} · {new Date(s.submittedAt).toLocaleString()}
+                        {s.language} · {new Date(s.submittedAt).toLocaleString()}
                       </span>
                     </div>
                   ))}
