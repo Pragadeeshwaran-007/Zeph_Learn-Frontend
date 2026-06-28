@@ -355,12 +355,12 @@ function ProblemSolver() {
                                 <div className="mt-2 grid gap-1 text-muted-foreground">
                                   <div>
                                     Expected:{" "}
-                                    <code className="text-foreground">{c.expected.slice(0, 200)}</code>
+                                    <code className="text-foreground">{(c.expected ?? "").slice(0, 200)}</code>
                                   </div>
                                   <div>
                                     Got:{" "}
                                     <code className="text-foreground">
-                                      {c.got.slice(0, 200) || "(empty)"}
+                                      {(c.got ?? "").slice(0, 200) || "(empty)"}
                                     </code>
                                   </div>
                                 </div>
