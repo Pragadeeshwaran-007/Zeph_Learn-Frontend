@@ -79,5 +79,13 @@ export const submissionService = {
     }
     
     return await res.json();
+  },
+
+  async count(): Promise<number> {
+    const res = await fetch(`${BASE}/api/submissions/count`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) return 0;
+    return await res.json();
   }
 };
