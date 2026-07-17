@@ -20,10 +20,10 @@ import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ProblemsIdRouteImport } from './routes/problems.$id'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminProblemsRouteImport } from './routes/admin.problems'
+import { Route as AdminNotifyRouteImport } from './routes/admin.notify'
 import { Route as AdminProblemsIndexRouteImport } from './routes/admin.problems.index'
 import { Route as AdminProblemsNewRouteImport } from './routes/admin.problems.new'
 import { Route as AdminProblemsIdRouteImport } from './routes/admin.problems.$id'
-import { Route as AdminNotifyRouteImport } from './routes/admin.notify'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -80,6 +80,11 @@ const AdminProblemsRoute = AdminProblemsRouteImport.update({
   path: '/problems',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminNotifyRoute = AdminNotifyRouteImport.update({
+  id: '/notify',
+  path: '/notify',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminProblemsIndexRoute = AdminProblemsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -95,11 +100,6 @@ const AdminProblemsIdRoute = AdminProblemsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AdminProblemsRoute,
 } as any)
-const AdminNotifyRoute = AdminNotifyRouteImport.update({
-  id: '/notify',
-  path: '/notify',
-  getParentRoute: () => AdminRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -108,9 +108,9 @@ export interface FileRoutesByFullPath {
   '/problems': typeof ProblemsRouteWithChildren
   '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
+  '/admin/notify': typeof AdminNotifyRoute
   '/admin/problems': typeof AdminProblemsRouteWithChildren
   '/admin/users': typeof AdminUsersRoute
-  '/admin/notify': typeof AdminNotifyRoute
   '/problems/$id': typeof ProblemsIdRoute
   '/admin/': typeof AdminIndexRoute
   '/problems/': typeof ProblemsIndexRoute
@@ -123,8 +123,8 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
-  '/admin/users': typeof AdminUsersRoute
   '/admin/notify': typeof AdminNotifyRoute
+  '/admin/users': typeof AdminUsersRoute
   '/problems/$id': typeof ProblemsIdRoute
   '/admin': typeof AdminIndexRoute
   '/problems': typeof ProblemsIndexRoute
@@ -140,9 +140,9 @@ export interface FileRoutesById {
   '/problems': typeof ProblemsRouteWithChildren
   '/profile': typeof ProfileRoute
   '/signup': typeof SignupRoute
+  '/admin/notify': typeof AdminNotifyRoute
   '/admin/problems': typeof AdminProblemsRouteWithChildren
   '/admin/users': typeof AdminUsersRoute
-  '/admin/notify': typeof AdminNotifyRoute
   '/problems/$id': typeof ProblemsIdRoute
   '/admin/': typeof AdminIndexRoute
   '/problems/': typeof ProblemsIndexRoute
@@ -159,6 +159,7 @@ export interface FileRouteTypes {
     | '/problems'
     | '/profile'
     | '/signup'
+    | '/admin/notify'
     | '/admin/problems'
     | '/admin/users'
     | '/problems/$id'
@@ -173,8 +174,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/profile'
     | '/signup'
-    | '/admin/users'
     | '/admin/notify'
+    | '/admin/users'
     | '/problems/$id'
     | '/admin'
     | '/problems'
@@ -189,9 +190,9 @@ export interface FileRouteTypes {
     | '/problems'
     | '/profile'
     | '/signup'
+    | '/admin/notify'
     | '/admin/problems'
     | '/admin/users'
-    | '/admin/notify'
     | '/problems/$id'
     | '/admin/'
     | '/problems/'
@@ -288,6 +289,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminProblemsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/notify': {
+      id: '/admin/notify'
+      path: '/notify'
+      fullPath: '/admin/notify'
+      preLoaderRoute: typeof AdminNotifyRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/problems/': {
       id: '/admin/problems/'
       path: '/'
@@ -329,16 +337,16 @@ const AdminProblemsRouteWithChildren = AdminProblemsRoute._addFileChildren(
 )
 
 interface AdminRouteChildren {
+  AdminNotifyRoute: typeof AdminNotifyRoute
   AdminProblemsRoute: typeof AdminProblemsRouteWithChildren
   AdminUsersRoute: typeof AdminUsersRoute
-  AdminNotifyRoute: typeof AdminNotifyRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminNotifyRoute: AdminNotifyRoute,
   AdminProblemsRoute: AdminProblemsRouteWithChildren,
   AdminUsersRoute: AdminUsersRoute,
-  AdminNotifyRoute: AdminNotifyRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 
