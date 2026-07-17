@@ -139,6 +139,26 @@ export const authService = {
     return { user, token };
   },
 
+  async loginWithGoogle(idToken: string): Promise<{ user: PublicUser; token: string }> {
+    let response: Response;
+    try {
+      response = await fetch(`${BASE}/api/auth/google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
+    } catch {
+      throw new Error("Network error. Please check your connection and try again.");
+    }
+    if (!response.ok) return apiError(response, "Google sign-in failed");
+    const data = (await response.json()) as Record<string, unknown>;
+    const token = String(data.token);
+    const user = normalizeUser(mapAuthUser(data))!;
+    ls.set(STORAGE_KEYS.token, token);
+    ls.set(STORAGE_KEYS.user, user);
+    return { user, token };
+  },
+
   async signup(
     name: string,
     email: string,
