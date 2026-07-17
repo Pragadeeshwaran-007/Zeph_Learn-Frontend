@@ -158,21 +158,17 @@ function ProfilePage() {
                 </thead>
                 <tbody>
                   {data.subs.map((s) => {
-                    const p = problemById.get(s.problemId);
+                    const p = problemById.get(String(s.problemId));
                     return (
                       <tr key={s.id} className="border-t border-border">
                         <td className="px-4 py-2.5">
-                          {p ? (
-                            <Link
-                              to="/problems/$id"
-                              params={{ id: p.id }}
-                              className="font-medium hover:text-primary"
-                            >
-                              {p.title}
-                            </Link>
-                          ) : (
-                            <span className="text-muted-foreground">Unknown</span>
-                          )}
+                          <Link
+                            to="/problems/$id"
+                            params={{ id: String(s.problemId) }}
+                            className="font-medium hover:text-primary"
+                          >
+                            {s.problem || p?.title || "Unknown"}
+                          </Link>
                         </td>
                         <td
                           className={`px-4 py-2.5 font-medium ${

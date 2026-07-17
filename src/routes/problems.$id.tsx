@@ -52,8 +52,8 @@ function ProblemSolver() {
 
   useEffect(() => {
     if (user && problem) {
-      submissionService.list(user.id).then((all) => {
-        setSubmissions(all.filter((s) => s.problemId === problem.id));
+      submissionService.listByProblem(problem.id).then((data) => {
+        setSubmissions(data);
       });
     }
   }, [user, problem, output]);

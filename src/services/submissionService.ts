@@ -20,6 +20,7 @@ export interface Submission {
   id: string;
   userId: string;
   problemId: string;
+  problem?: string;
   code: string;
   language: number;
   verdict: string;
@@ -47,6 +48,14 @@ export const submissionService = {
   async list(userId?: string): Promise<Submission[]> {
     if (!userId) return [];
     const res = await fetch(`${BASE}/api/submissions/user/${encodeURIComponent(userId)}`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  },
+  
+  async listByProblem(problemId: string): Promise<Submission[]> {
+    const res = await fetch(`${BASE}/api/submissions/problem/${encodeURIComponent(problemId)}`, {
       headers: authHeaders(),
     });
     if (!res.ok) return [];
