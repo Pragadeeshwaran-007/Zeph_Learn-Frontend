@@ -30,11 +30,14 @@ function authReadHeaders(): HeadersInit {
 
 async function apiError(response: Response, fallback: string): Promise<never> {
   try {
-    const data = (await response.json()) as { error?: string; message?: string };
-    const msg = data?.error ?? data?.message;
-    if (msg) throw new Error(msg);
+    const text = await response.text();
+    if (text) {
+      const data = JSON.parse(text) as { error?: string; message?: string };
+      const msg = data?.error ?? data?.message;
+      if (msg) throw new Error(msg);
+    }
   } catch (e) {
-    if (e instanceof Error && e.message !== fallback) throw e;
+    if (e instanceof Error && e.message !== fallback && e.name !== "SyntaxError") throw e;
   }
   throw new Error(fallback);
 }
@@ -244,6 +247,8 @@ export const authService = {
     const cur = normalizeUser(ls.get<PublicUser | null>(STORAGE_KEYS.user, null));
     if (cur && cur.id === userId && !cur.solvedProblems.includes(problemId)) {
       cur.solvedProblems.push(problemId);
+      // Optimistically increment streak; fetchProfile will sync the true value later
+      cur.streak += 1;
       ls.set(STORAGE_KEYS.user, cur);
     }
   },

@@ -30,19 +30,19 @@ export function useNotifications(enabled = true) {
     return () => window.clearInterval(id);
   }, [enabled, refresh]);
 
-  const markRead = useCallback(async (id: string) => {
-    await notificationService.markRead(id);
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+  const markRead = useCallback(async (id: number) => {
+    await notificationService.markAsRead(id);
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
   }, []);
 
   const markAllRead = useCallback(async () => {
-    const unread = notifications.filter((n) => !n.read);
+    const unread = notifications.filter((n) => !n.isRead);
     if (unread.length === 0) return;
-    await Promise.all(unread.map((n) => notificationService.markRead(n.id)));
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    await Promise.all(unread.map((n) => notificationService.markAsRead(n.id)));
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
   }, [notifications]);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   return { notifications, loading, unreadCount, refresh, markRead, markAllRead };
 }
